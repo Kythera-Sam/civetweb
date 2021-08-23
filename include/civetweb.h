@@ -47,7 +47,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(KYT_CIVETWEB_BUILD)
 extern "C" {
 #endif /* __cplusplus */
 
@@ -1767,7 +1767,7 @@ CIVETWEB_API int mg_start_domain2(struct mg_context *ctx,
                                   struct mg_error_data *error);
 #endif
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(KYT_CIVETWEB_BUILD)
 }
 #endif /* __cplusplus */
 
