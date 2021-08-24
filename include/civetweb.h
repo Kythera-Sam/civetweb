@@ -23,6 +23,15 @@
 #ifndef CIVETWEB_HEADER_INCLUDED
 #define CIVETWEB_HEADER_INCLUDED
 
+#ifndef KYT_MG_BEGIN
+#define KYT_MG_BEGIN
+#define KYT_UNDEF_NAMESPACE_MACRO
+#endif
+#ifndef KYT_MG_END
+#define KYT_MG_END
+#define KYT_UNDEF_NAMESPACE_MACRO
+#endif
+
 #define CIVETWEB_VERSION "1.15"
 #define CIVETWEB_VERSION_MAJOR (1)
 #define CIVETWEB_VERSION_MINOR (15)
@@ -51,6 +60,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
+KYT_MG_BEGIN
 
 /* Init Features */
 enum {
@@ -914,6 +924,8 @@ enum {
 	MG_WEBSOCKET_OPCODE_PONG = 0xa
 };
 
+KYT_MG_END
+
 /* Macros for enabling compiler-specific checks for printf-like arguments. */
 #undef PRINTF_FORMAT_STRING
 #if defined(_MSC_VER) && _MSC_VER >= 1400
@@ -933,6 +945,7 @@ enum {
 #define PRINTF_ARGS(x, y)
 #endif
 
+KYT_MG_BEGIN
 
 /* Send data to the client using printf() semantics.
    Works exactly like mg_write(), but allows to do message formatting. */
@@ -1767,8 +1780,16 @@ CIVETWEB_API int mg_start_domain2(struct mg_context *ctx,
                                   struct mg_error_data *error);
 #endif
 
+KYT_MG_END
+
 #if defined(__cplusplus) && !defined(KYT_CIVETWEB_BUILD)
 }
 #endif /* __cplusplus */
+
+#ifdef KYT_UNDEF_NAMESPACE_MACRO
+#undef KYT_MG_BEGIN
+#undef KYT_MG_END
+#undef KYT_UNDEF_NAMESPACE_MACRO
+#endif
 
 #endif /* CIVETWEB_HEADER_INCLUDED */

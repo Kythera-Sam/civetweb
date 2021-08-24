@@ -20,6 +20,15 @@
  * THE SOFTWARE.
  */
 
+#ifndef KYT_MG_BEGIN
+#define KYT_MG_BEGIN
+#define KYT_UNDEF_NAMESPACE_MACRO
+#endif
+#ifndef KYT_MG_END
+#define KYT_MG_END
+#define KYT_UNDEF_NAMESPACE_MACRO
+#endif
+
 #if defined(__GNUC__) || defined(__MINGW32__)
 #define GCC_VERSION                                                            \
 	(__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
@@ -371,6 +380,8 @@ __cyg_profile_func_exit(void *this_fn, void *call_site)
 #include <sys/errno.h>
 #include <sys/time.h>
 
+KYT_MG_BEGIN
+
 /* clock_gettime is not implemented on OSX prior to 10.12 */
 static int
 _civet_clock_gettime(int clk_id, struct timespec *t)
@@ -430,6 +441,8 @@ _civet_safe_clock_gettime(int clk_id, struct timespec *t)
 #else
 #define clock_gettime _civet_clock_gettime
 #endif
+
+KYT_MG_END
 
 #endif
 
@@ -666,6 +679,8 @@ time_t timegm(struct tm *tm);
 #define fileno(x) (_fileno(x))
 #endif /* !fileno MINGW #defines fileno */
 
+KYT_MG_BEGIN
+
 typedef struct {
 	CRITICAL_SECTION sec; /* Immovable */
 } pthread_mutex_t;
@@ -846,6 +861,8 @@ struct mg_pollfd {
 #pragma comment(lib, "Ws2_32.lib")
 #endif
 
+KYT_MG_END
+
 #else /* defined(_WIN32) - WINDOWS vs UNIX include block */
 
 #include <inttypes.h>
@@ -941,6 +958,8 @@ typedef int SOCKET;
 #define mg_pollfd pollfd
 
 #endif /* defined(_WIN32) - WINDOWS vs UNIX include block */
+
+KYT_MG_BEGIN
 
 /* In case our C library is missing "timegm", provide an implementation */
 #if defined(NEED_TIMEGM)
@@ -1723,6 +1742,7 @@ typedef int socklen_t;
 #define MSG_NOSIGNAL (0)
 #endif
 
+KYT_MG_END
 
 /* SSL: mbedTLS vs. no-ssl vs. OpenSSL */
 #if defined(USE_MBEDTLS)
@@ -1798,6 +1818,7 @@ typedef struct SSL_CTX SSL_CTX;
 
 #endif /* Various SSL bindings */
 
+KYT_MG_BEGIN
 
 #if !defined(NO_CACHING)
 static const char month_names[][4] = {"Jan",
@@ -2569,12 +2590,15 @@ typedef struct tagTHREADNAME_INFO {
 
 #elif defined(__linux__)
 
+KYT_MG_END
+
 #include <sys/prctl.h>
 #include <sys/sendfile.h>
 #if defined(ALTERNATIVE_QUEUE)
 #include <sys/eventfd.h>
 #endif /* ALTERNATIVE_QUEUE */
 
+KYT_MG_BEGIN
 
 #if defined(ALTERNATIVE_QUEUE)
 
@@ -9131,16 +9155,16 @@ connect_socket(
 	}
 
 	if (ip_ver == 4) {
-		*sock = socket(PF_INET, SOCK_STREAM, 0);
+		*sock = ::socket(PF_INET, SOCK_STREAM, 0);
 	}
 #if defined(USE_IPV6)
 	else if (ip_ver == 6) {
-		*sock = socket(PF_INET6, SOCK_STREAM, 0);
+		*sock = ::socket(PF_INET6, SOCK_STREAM, 0);
 	}
 #endif
 #if defined(USE_X_DOM_SOCKET)
 	else if (ip_ver == -99) {
-		*sock = socket(AF_UNIX, SOCK_STREAM, 0);
+		*sock = ::socket(AF_UNIX, SOCK_STREAM, 0);
 	}
 #endif
 
@@ -14985,7 +15009,7 @@ set_ports_option(struct mg_context *phys_ctx)
 		 * https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml
 		 */
 		if ((so.sock =
-		         socket(so.lsa.sa.sa_family,
+		         ::socket(so.lsa.sa.sa_family,
 		                SOCK_STREAM,
 		                (ip_version == 99) ? (/* LOCAL */ 0) : (/* TCP */ 6)))
 		    == INVALID_SOCKET) {
@@ -21509,5 +21533,12 @@ mg_exit_library(void)
 	return 1;
 }
 
+KYT_MG_END
+
+#ifdef KYT_UNDEF_NAMESPACE_MACRO
+#undef KYT_MG_BEGIN
+#undef KYT_MG_END
+#undef KYT_UNDEF_NAMESPACE_MACRO
+#endif
 
 /* End of civetweb.c */
