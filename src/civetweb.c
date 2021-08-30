@@ -371,8 +371,12 @@ __cyg_profile_func_exit(void *this_fn, void *call_site)
 #endif
 #endif
 
+#ifndef CLOCK_MONOTONIC
 #define CLOCK_MONOTONIC (1)
+#endif
+#ifndef CLOCK_REALTIME
 #define CLOCK_REALTIME (2)
+#endif
 
 #include <mach/clock.h>
 #include <mach/mach.h>
