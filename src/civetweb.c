@@ -3684,7 +3684,7 @@ mg_construct_local_link(const struct mg_connection *conn,
 			char server_ip[48];
 
 			if (port != default_port) {
-				sprintf(portstr, ":%u", (unsigned)port);
+				mg_snprintf(conn, &truncated, portstr, 16, ":%u", (unsigned)port);
 			} else {
 				portstr[0] = 0;
 			}
@@ -6824,7 +6824,7 @@ mg_send_chunk(struct mg_connection *conn,
 	int t;
 
 	/* First store the length information in a text buffer. */
-	sprintf(lenbuf, "%x\r\n", chunk_len);
+	mg_snprintf(conn, NULL, lenbuf, 16, "%x\r\n", chunk_len);
 	lenbuf_len = strlen(lenbuf);
 
 	/* Then send length information, chunk and terminating \r\n. */
@@ -19578,7 +19578,9 @@ get_system_name(char **sysName)
 
 	wowRet = IsWow64Process(GetCurrentProcess(), &isWoW);
 
-	sprintf(name,
+	mg_snprintf(NULL, NULL,
+	        name,
+	        128,
 	        "Windows %u.%u%s",
 	        (unsigned)dwMajorVersion,
 	        (unsigned)dwMinorVersion,
