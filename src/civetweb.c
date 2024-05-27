@@ -9338,32 +9338,53 @@ mg_modify_passwords_file_ha1(const char *fname,
 			d[255] = 0;
 			h[255] = 0;
 
+			int ulen = (int)strlen(u);
+			int dlen = (int)strlen(d);
+			int hlen = (int)strlen(h);
+
+			int length = ulen + 1 + dlen + 1 + hlen; // "%s:%s:%s\n",
+
 			if (!strcmp(u, user) && !strcmp(d, domain)) {
 				/* Found the user: change the password hash or drop the user
 				 */
 				if ((ha1 != NULL) && (!found)) {
-					i = sprintf(temp_file + temp_file_offs,
+					// convert to mg_snprintf
+					int truncated = 0;
+					mg_snprintf(NULL,
+					            &truncated,
+					            temp_file + temp_file_offs,
+					            length,
 					            "%s:%s:%s\n",
 					            user,
 					            domain,
 					            ha1);
-					if (i < 1) {
+
+					if (truncated) {
 						fclose(fp);
 						mg_free(temp_file);
 						return 0;
 					}
-					temp_file_offs += i;
+					temp_file_offs += length;
 				}
 				found = 1;
 			} else {
 				/* Copy existing user, including password hash */
-				i = sprintf(temp_file + temp_file_offs, "%s:%s:%s\n", u, d, h);
-				if (i < 1) {
+				int truncated = 0;
+				mg_snprintf(NULL,
+				            &truncated,
+				            temp_file + temp_file_offs,
+				            length,
+				            "%s:%s:%s\n",
+				            u,
+				            d,
+				            h);
+
+				if (truncated) {
 					fclose(fp);
 					mg_free(temp_file);
 					return 0;
 				}
-				temp_file_offs += i;
+				temp_file_offs += length;
 			}
 		}
 		fclose(fp);
@@ -13064,7 +13085,7 @@ dav_lock_file(struct mg_connection *conn, const char *path)
 			if (dav_lock[i].path[0] == 0) {
 				char s[32];
 				dav_lock[i].locktime = mg_get_current_time_ns();
-				sprintf(s, "%" UINT64_FMT, (uint64_t)dav_lock[i].locktime);
+				mg_snprintf(conn, NULL, s, sizeof(s), "%" UINT64_FMT, dav_lock[i].locktime);
 				mg_md5(dav_lock[i].token,
 				       link_buf,
 				       "\x01",
