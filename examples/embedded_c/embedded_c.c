@@ -1,8 +1,12 @@
 /*
- * Copyright (c) 2013-2020 the CivetWeb developers
+ * Copyright (c) 2013-2021 the CivetWeb developers
  * Copyright (c) 2013 No Face Press, LLC
  * License http://opensource.org/licenses/mit-license.php MIT License
  */
+
+/* Note: This example omits some error checking and input validation for a
+ * better clarity/readability of the code. Example codes undergo less quality
+ * management than the main source files of this project. */
 
 #ifdef NO_SSL
 #define TEST_WITHOUT_SSL
@@ -618,7 +622,6 @@ PostResponser(struct mg_connection *conn, void *cbdata)
 
 	if (0 != strcmp(ri->request_method, "POST")) {
 		/* Not a POST request */
-		char buf[1024];
 		int ret = mg_get_request_link(conn, buf, sizeof(buf));
 
 		mg_printf(conn,
@@ -651,7 +654,7 @@ PostResponser(struct mg_connection *conn, void *cbdata)
 	while (r > 0) {
 		r_total += r;
 		s = mg_send_chunk(conn, buf, r);
-		if (r != s) {
+		if (s <= 0) {
 			/* Send error */
 			break;
 		}

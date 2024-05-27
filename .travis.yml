@@ -9,7 +9,7 @@ cache:
   directories:
   - $HOME/third-party
 
-osx_image: xcode8
+osx_image: xcode9
 
 addons:
   apt:
@@ -17,6 +17,7 @@ addons:
       - cmake
       - openssl
       - libssl-dev
+      - gdb
     sources:
       - kubuntu-backports
 
@@ -81,6 +82,7 @@ before_script:
     -DCIVETWEB_ENABLE_SSL_DYNAMIC_LOADING=${ENABLE_SSL_DYNAMIC_LOADING}
     -DCIVETWEB_SSL_OPENSSL_API_1_0=${OPENSSL_1_0}
     -DCIVETWEB_SSL_OPENSSL_API_1_1=${OPENSSL_1_1}
+    -DCIVETWEB_SSL_OPENSSL_API_3_0=${OPENSSL_3_0}
     -DCIVETWEB_ENABLE_WEBSOCKETS=${ENABLE_WEBSOCKETS}
     -DCIVETWEB_ENABLE_CXX=${ENABLE_CXX}
     -DCIVETWEB_ENABLE_SERVER_STATS=${ENABLE_SERVER_STATS}
@@ -106,6 +108,7 @@ before_script:
     -DCIVETWEB_ENABLE_SSL_DYNAMIC_LOADING=${ENABLE_SSL_DYNAMIC_LOADING}
     -DCIVETWEB_SSL_OPENSSL_API_1_0=${OPENSSL_1_0}
     -DCIVETWEB_SSL_OPENSSL_API_1_1=${OPENSSL_1_1}
+    -DCIVETWEB_SSL_OPENSSL_API_3_0=${OPENSSL_3_0}
     -DCIVETWEB_ENABLE_WEBSOCKETS=${ENABLE_WEBSOCKETS}
     -DCIVETWEB_ENABLE_CXX=${ENABLE_CXX}
     -DCIVETWEB_ENABLE_SERVER_STATS=${ENABLE_SERVER_STATS}
@@ -120,6 +123,12 @@ before_script:
     ${ADDITIONAL_CMAKE_ARGS}
     ..
   - ls -la
+  - ulimit -c unlimited -S
+
+after_failure:
+  - COREFILE=$(find . -maxdepth 1 -name "core*" | head -n 1) # find core file
+  - if [[ -f "$COREFILE" ]]; then gdb -c "$COREFILE" example -ex "thread apply all bt" -ex "set pagination 0" -batch; fi
+
 
 # Modifications due to Travis IPv6 issues:
 # https://github.com/travis-ci/travis-ci/issues/8711
@@ -130,13 +139,14 @@ script:
   - if [ "${MACOSX_PACKAGE}" == "1" ]; then
       cd "${TRAVIS_BUILD_DIR}";
       make -f Makefile.osx package;
-    else
-      CTEST_OUTPUT_ON_FAILURE=1 make all test;
+    fi
+  - if [ "${RUN_UNITTEST}" == "1" ]; then
+      CTEST_OUTPUT_ON_FAILURE=1  CK_FORK=yes  make all test;
     fi
   - pwd
   - ls -la unittest
   - echo "Show all test logs:"
-  - if [ "${MACOSX_PACKAGE}" != "1" ]; then
+  - if [ "${RUN_UNITTEST}" == "1" ]; then
       for f in unittest/test-*.log; do printf "\n$f:\n"; cat $f; done;
       for f in unittest/test-*.xml; do printf "\n$f:\n"; cat $f; done;
     fi
@@ -153,49 +163,21 @@ after_success:
       echo "All coverage reports created";
     fi
 
-conan-linux: &conan-linux
-    os: linux
-    dist: xenial
-    language: python
-    python: "3.7"
-    services:
-      - docker
-    if: tag IS present
-    before_install:
-      - true
-    install:
-      - ./conan/travis/install.sh
-    before_script:
-      - true
-    script:
-      - ./conan/travis/build.sh
-    after_success:
-      - true
 
-conan-osx: &conan-osx
-    os: osx
-    language: generic
-    if: tag IS present
-    before_install:
-      - true
-    install:
-      - ./conan/travis/install.sh
-    before_script:
-      - true
-    script:
-      - ./conan/travis/build.sh
-    after_success:
-      - true
-
-
-##############################################################################
-# build matrix
-##############################################################################
-
+#########################################################################################
+#########################################################################################
+#####   START OF BUILD MATRIX   #########################################################
+#########################################################################################
+#########################################################################################
 
 matrix:
-  fast_finish: false
+  fast_finish: true
   include:
+
+
+#########################################################################################
+#####   TRUSTY   ########################################################################
+#########################################################################################
 
   - dist: trusty
     sudo: false
@@ -244,42 +226,6 @@ matrix:
         packages:
           - clang-3.8
     env:
-      idx=2
-      N=Clang3.8-Linux-Default-Release
-      MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
-      BUILD_TYPE=Release
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=NO
-      ENABLE_WEBSOCKETS=NO
-      ENABLE_SERVER_STATS=NO
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=NO
-      NO_CACHING=NO
-      ALLOW_WARNINGS=YES
-
-  - dist: trusty
-    sudo: false
-    os: linux
-    compiler: clang
-    addons:
-      apt:
-        sources:
-          - ubuntu-toolchain-r-test
-          - llvm-toolchain-precise-3.8
-        packages:
-          - clang-3.8
-    env:
       idx=3
       N=Clang3.8-Linux-Default-Release
       MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
@@ -302,42 +248,6 @@ matrix:
       ENABLE_DUKTAPE=NO
       NO_CACHING=NO
       ALLOW_WARNINGS=YES
-
-  - dist: trusty
-    sudo: required
-    os: linux
-    compiler: clang
-    addons:
-      apt:
-        sources:
-          - ubuntu-toolchain-r-test
-          - llvm-toolchain-precise-3.8
-        packages:
-          - clang-3.8
-    env:
-      idx=4
-      N=Clang3.8-Linux-Complete-NoLua-Release
-      MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
-      BUILD_TYPE=Release
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=YES
-      ENABLE_WEBSOCKETS=YES
-      ENABLE_SERVER_STATS=YES
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=YES
-      ALLOW_WARNINGS=YES
-
 
   - dist: trusty
     sudo: required
@@ -372,6 +282,12 @@ matrix:
       ENABLE_DUKTAPE=NO
       NO_CACHING=YES
       ALLOW_WARNINGS=YES
+      RUN_UNITTEST=1
+
+
+#########################################################################################
+#####   COVERAGE   ######################################################################
+#########################################################################################
 
   - os: linux
     sudo: required
@@ -398,84 +314,22 @@ matrix:
       ENABLE_DUKTAPE=NO
       NO_CACHING=NO
       ALLOW_WARNINGS=YES
+      RUN_UNITTEST=1
 
-  - os: osx
-    sudo: required
-    compiler: clang
-    env:
-      idx=7
-      N=Clang-OSX-Complete-NoLua-Release
-      BUILD_TYPE=Release
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=YES
-      ENABLE_WEBSOCKETS=YES
-      ENABLE_SERVER_STATS=YES
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=YES
-      ALLOW_WARNINGS=YES
+#########################################################################################
+#####   SHARED   ########################################################################
+#########################################################################################
 
-  -
-    os: osx
-    sudo: required
-    compiler: clang
-    env:
-      idx=8
-      N=Clang-OSX-Complete-NoLua-Release-OpenSSL_1_1_NoDynLoad
-      BUILD_TYPE=OSX_OPENSSL_1_1
-      ENABLE_SSL_DYNAMIC_LOADING=NO
-      OPENSSL_1_0=NO
-      OPENSSL_1_1=YES
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=YES
-      ENABLE_WEBSOCKETS=YES
-      ENABLE_SERVER_STATS=YES
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=YES
-      ALLOW_WARNINGS=YES
-      OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1"
-      LDFLAGS="-L${OPENSSL_ROOT_DIR}/lib"
-      CFLAGS="-I${OPENSSL_ROOT_DIR}/include"
-      ADDITIONAL_CMAKE_ARGS="-DCMAKE_SHARED_LINKER_FLAGS=${LDFLAGS} -DCMAKE_C_FLAGS=${CFLAGS}"
-      PATH="${OPENSSL_ROOT_DIR}/bin:$PATH"
-      DYLD_LIBRARY_PATH="${OPENSSL_ROOT_DIR}/lib:${DYLD_LIBRARY_PATH}"
-
-  - dist: trusty
-    sudo: false
+  - sudo: false
     os: linux
     compiler: clang
-    addons:
-      apt:
-        sources:
-          - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
-        packages:
-          - clang-5.0
     env:
       idx=9
-      N=Clang50-Linux-Default-Shared
+      N=Clang-Linux-Default-Shared
       BUILD_TYPE=Debug
       ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
+      OPENSSL_1_0=NO
+      OPENSSL_1_1=YES
       ENABLE_CXX=NO
       ENABLE_LUA_SHARED=NO
       C_STANDARD=auto
@@ -491,128 +345,14 @@ matrix:
       ENABLE_DUKTAPE=NO
       NO_CACHING=NO
       ALLOW_WARNINGS=YES
-      MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
-
-  -
-    os: osx
-    sudo: required
-    compiler: clang
-    env:
-      idx=11
-      N=OSX-Package
-      BUILD_TYPE=Release
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=YES
-      ENABLE_WEBSOCKETS=YES
-      ENABLE_SERVER_STATS=NO
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=NO
-      ALLOW_WARNINGS=YES
-      MACOSX_PACKAGE=1
-
-  - dist: trusty
-    sudo: required
-    os: linux
-    compiler: clang
-    addons:
-      apt:
-        sources:
-          - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-3.8
-        packages:
-          - clang-3.8
-    env:
-      idx=12
-      N=Clang-Linux-32bit-Complete-NoLua-Release
-      ARCH=x86
-      BUILD_TYPE=Release
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=YES
-      ENABLE_WEBSOCKETS=YES
-      ENABLE_SERVER_STATS=YES
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=YES
-      ALLOW_WARNINGS=YES
-      MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
 
 
-### Test all build types:
+#########################################################################################
+#####   BUILD TYPES   ###################################################################
+#########################################################################################
+
 # According to CMakeLists, options are:
 # None Debug Release RelWithDebInfo MinSizeRel Coverage
-
-  -
-    os: linux
-    sudo: required
-    compiler: clang
-    env:
-      idx=13
-      N=NoSslDynamicLoading
-      BUILD_TYPE=Release
-      ENABLE_SSL_DYNAMIC_LOADING=NO
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      ENABLE_LUA_SHARED=NO
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=YES
-      ENABLE_WEBSOCKETS=YES
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=NO
-      ALLOW_WARNINGS=YES
-      MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
-
-  -
-    os: linux
-    compiler: gcc
-    env:
-      idx=14
-      N=GCCLinuxDefault_Debug
-      BUILD_TYPE=Debug
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=NO
-      ENABLE_WEBSOCKETS=NO
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=NO
-      ALLOW_WARNINGS=YES
 
   -
     os: linux
@@ -689,67 +429,9 @@ matrix:
       NO_CACHING=NO
       ALLOW_WARNINGS=YES
 
-  -
-    os: linux
-    compiler: clang
-    env:
-      idx=18
-      N=Clang3.8-Linux-Complete-NoLua-Debug
-      MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
-      BUILD_TYPE=Debug
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=YES
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=YES
-      ENABLE_WEBSOCKETS=YES
-      ENABLE_SERVER_STATS=YES
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=YES
-      ALLOW_WARNINGS=YES
-
-  - dist: trusty
-    sudo: false
-    os: linux
-    compiler: clang
-    addons:
-      apt:
-        sources:
-          - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
-        packages:
-          - clang-5.0
-    env:
-      idx=19
-      N=Clang5.0-Linux-Complete-CXX-NoLua-Release
-      MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
-      BUILD_TYPE=Release
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=YES
-      OPENSSL_1_1=NO
-      ENABLE_CXX=YES
-      ENABLE_LUA_SHARED=YES
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=YES
-      ENABLE_WEBSOCKETS=YES
-      ENABLE_SERVER_STATS=YES
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=NO
-      ALLOW_WARNINGS=YES
+#########################################################################################
+#####   XENIAL, BIONIC, FOCAL   #########################################################
+#########################################################################################
 
   -
     os: linux
@@ -806,32 +488,6 @@ matrix:
   -
     os: linux
     compiler: gcc
-    dist: eoan
-    env:
-      idx=22
-      N=GCCLinuxDefault_eoan
-      BUILD_TYPE=Release
-      ENABLE_SSL_DYNAMIC_LOADING=YES
-      OPENSSL_1_0=NO
-      OPENSSL_1_1=YES
-      ENABLE_CXX=NO
-      ENABLE_LUA_SHARED=NO
-      C_STANDARD=auto
-      CXX_STANDARD=auto
-      BUILD_SHARED=NO
-      NO_FILES=NO
-      ENABLE_SSL=YES
-      NO_CGI=NO
-      ENABLE_IPV6=NO
-      ENABLE_WEBSOCKETS=NO
-      ENABLE_LUA=NO
-      ENABLE_DUKTAPE=NO
-      NO_CACHING=NO
-      ALLOW_WARNINGS=YES
-
-  -
-    os: linux
-    compiler: gcc
     dist: focal
     addons:
       apt:
@@ -858,37 +514,113 @@ matrix:
       ENABLE_DUKTAPE=NO
       NO_CACHING=NO
       ALLOW_WARNINGS=YES
+      RUN_UNITTEST=1
 
-  - <<: *conan-linux
-    env: CONAN_GCC_VERSIONS=4.9 CONAN_DOCKER_IMAGE=conanio/gcc49 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-linux
-    env: CONAN_GCC_VERSIONS=5 CONAN_DOCKER_IMAGE=conanio/gcc5 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-linux
-    env: CONAN_GCC_VERSIONS=6 CONAN_DOCKER_IMAGE=conanio/gcc6 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-linux
-    env: CONAN_GCC_VERSIONS=7 CONAN_DOCKER_IMAGE=conanio/gcc7 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-linux
-    env: CONAN_GCC_VERSIONS=8 CONAN_DOCKER_IMAGE=conanio/gcc8 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-linux
-    env: CONAN_CLANG_VERSIONS=3.9 CONAN_DOCKER_IMAGE=conanio/clang39 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-linux
-    env: CONAN_CLANG_VERSIONS=4.0 CONAN_DOCKER_IMAGE=conanio/clang40 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-linux
-    env: CONAN_CLANG_VERSIONS=5.0 CONAN_DOCKER_IMAGE=conanio/clang50 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-linux
-    env: CONAN_CLANG_VERSIONS=6.0 CONAN_DOCKER_IMAGE=conanio/clang60 CONAN_DOCKER_32_IMAGES=1
-  - <<: *conan-osx
-    osx_image: xcode8.3
-    env: CONAN_APPLE_CLANG_VERSIONS=8.1
-  - <<: *conan-osx
-    osx_image: xcode9
-    env: CONAN_APPLE_CLANG_VERSIONS=9.0
-  - <<: *conan-osx
-    osx_image: xcode9.4
-    env: CONAN_APPLE_CLANG_VERSIONS=9.1
-  - <<: *conan-osx
-    osx_image: xcode10.1
-    env: CONAN_APPLE_CLANG_VERSIONS=10.0
+
+#########################################################################################
+#####   FREEBSD BUILD   ###########=#####################################################
+#########################################################################################
+
+  -
+    os: freebsd
+    sudo: required
+    compiler: clang
+    env:
+      idx=20
+      N=Clang-FREEBSD-Complete-NoLua-Release
+      BUILD_TYPE=Release
+      ENABLE_SSL_DYNAMIC_LOADING=YES
+      OPENSSL_1_0=NO
+      OPENSSL_1_1=YES
+      ENABLE_CXX=NO
+      ENABLE_LUA_SHARED=NO
+      C_STANDARD=auto
+      CXX_STANDARD=auto
+      BUILD_SHARED=NO
+      NO_FILES=NO
+      ENABLE_SSL=YES
+      NO_CGI=NO
+      ENABLE_IPV6=YES
+      ENABLE_WEBSOCKETS=YES
+      ENABLE_SERVER_STATS=YES
+      ENABLE_LUA=NO
+      ENABLE_DUKTAPE=NO
+      NO_CACHING=NO
+      ALLOW_WARNINGS=YES
+      RUN_UNITTEST=1
+
+
+#########################################################################################
+#####   OSX BUILD   #####################################################################
+#########################################################################################
+
+  -
+    os: osx
+    sudo: required
+    compiler: clang
+    env:
+      idx=8
+      N=Clang-OSX-Complete-NoLua-Release-OpenSSL_1_1_NoDynLoad
+      BUILD_TYPE=Release
+      ENABLE_SSL_DYNAMIC_LOADING=NO
+      OPENSSL_1_0=NO
+      OPENSSL_1_1=YES
+      ENABLE_CXX=NO
+      ENABLE_LUA_SHARED=NO
+      C_STANDARD=auto
+      CXX_STANDARD=auto
+      BUILD_SHARED=NO
+      NO_FILES=NO
+      ENABLE_SSL=YES
+      NO_CGI=NO
+      ENABLE_IPV6=YES
+      ENABLE_WEBSOCKETS=YES
+      ENABLE_SERVER_STATS=YES
+      ENABLE_LUA=NO
+      ENABLE_DUKTAPE=NO
+      NO_CACHING=YES
+      ALLOW_WARNINGS=YES
+      OPENSSL_ROOT_DIR="/usr/local/opt/openssl@1.1"
+      LDFLAGS="-L${OPENSSL_ROOT_DIR}/lib"
+      CFLAGS="-I${OPENSSL_ROOT_DIR}/include"
+      ADDITIONAL_CMAKE_ARGS="-DCMAKE_SHARED_LINKER_FLAGS=${LDFLAGS} -DCMAKE_C_FLAGS=${CFLAGS}"
+      PATH="${OPENSSL_ROOT_DIR}/bin:$PATH"
+      DYLD_LIBRARY_PATH="${OPENSSL_ROOT_DIR}/lib:${DYLD_LIBRARY_PATH}"
+      RUN_UNITTEST=1
+
+  -
+    os: osx
+    sudo: required
+    compiler: clang
+    env:
+      idx=11
+      N=OSX-Package
+      BUILD_TYPE=Release
+      ENABLE_SSL_DYNAMIC_LOADING=YES
+      OPENSSL_1_0=YES
+      OPENSSL_1_1=NO
+      ENABLE_CXX=NO
+      ENABLE_LUA_SHARED=NO
+      C_STANDARD=auto
+      CXX_STANDARD=auto
+      BUILD_SHARED=NO
+      NO_FILES=NO
+      ENABLE_SSL=YES
+      NO_CGI=NO
+      ENABLE_IPV6=YES
+      ENABLE_WEBSOCKETS=YES
+      ENABLE_SERVER_STATS=NO
+      ENABLE_LUA=NO
+      ENABLE_DUKTAPE=NO
+      NO_CACHING=NO
+      ALLOW_WARNINGS=YES
+      MACOSX_PACKAGE=1
+
+#########################################################################################
+#########################################################################################
+#####   END OF BUILD MATRIX   ###########################################################
+#########################################################################################
+#########################################################################################
 
 # Remove Lua build, until someone knows how to fix the CMake files
 #
@@ -928,5 +660,3 @@ matrix:
 #      ENABLE_DUKTAPE=NO
 #      NO_CACHING=YES
 #      ALLOW_WARNINGS=YES
-
-
