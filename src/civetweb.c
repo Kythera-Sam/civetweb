@@ -12235,7 +12235,7 @@ dav_move_file(struct mg_connection *conn, const char *path, int do_copy)
 			    get_rel_url_at_current_server(destination_hdr, conn);
 			if (h) {
 				size_t len = strlen(h);
-				local_dest = mg_malloc_ctx(len + 1, conn->phys_ctx);
+				local_dest = (char*)mg_malloc_ctx(len + 1, conn->phys_ctx);
 				mg_url_decode(h, (int)len, local_dest, (int)len + 1, 0);
 			}
 		}
@@ -12879,7 +12879,7 @@ print_props(struct mg_connection *conn,
 	}
 
 	link_concat_len = strlen(uri) + strlen(name) + 1;
-	link_concat = mg_malloc_ctx(link_concat_len, conn->phys_ctx);
+	link_concat = (char*)mg_malloc_ctx(link_concat_len, conn->phys_ctx);
 	if (!link_concat) {
 		return 0;
 	}
@@ -20842,7 +20842,7 @@ mg_socketpair(int *sockA, int *sockB)
 #else
 	/** No socketpair() call is available, so we'll have to roll our own
 	 * implementation */
-	asock = socket(PF_INET, SOCK_STREAM, 0);
+	asock = ::socket(PF_INET, SOCK_STREAM, 0);
 	if (asock >= 0) {
 		struct sockaddr_in addr;
 		struct sockaddr *pa = (struct sockaddr *)&addr;
@@ -20856,7 +20856,7 @@ mg_socketpair(int *sockA, int *sockB)
 		if ((bind(asock, pa, sizeof(addr)) == 0)
 		    && (getsockname(asock, pa, &addrLen) == 0)
 		    && (listen(asock, 1) == 0)) {
-			temp[0] = socket(PF_INET, SOCK_STREAM, 0);
+			temp[0] = ::socket(PF_INET, SOCK_STREAM, 0);
 			if ((temp[0] >= 0) && (connect(temp[0], pa, sizeof(addr)) == 0)) {
 				temp[1] = accept(asock, pa, &addrLen);
 				if (temp[1] >= 0) {
